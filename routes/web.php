@@ -50,17 +50,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/{id}/invitations/{inviteId}',      [GroupController::class, 'inviteCancel'])->name('invitations.cancel');
         Route::delete('/{id}/members/{memberId}', [GroupController::class, 'removeMember'])->name('members.remove');
         Route::post('/{id}/archive', [GroupController::class, 'archive'])->name('archive');
+        Route::post('/{id}/nudge/{userId}', [GroupController::class, 'nudge'])->name('nudge');
     });
 
     // Expenses
     Route::prefix('expenses')->name('expenses.')->group(function () {
         Route::get('/',          [ExpenseController::class, 'index'])->name('index');
+        Route::get('/export',    [ExpenseController::class, 'export'])->name('export');
         Route::get('/create',    [ExpenseController::class, 'create'])->name('create');
         Route::post('/',         [ExpenseController::class, 'store'])->name('store');
         Route::get('/{id}',      [ExpenseController::class, 'show'])->name('show');
         Route::get('/{id}/edit', [ExpenseController::class, 'edit'])->name('edit');
         Route::patch('/{id}',    [ExpenseController::class, 'update'])->name('update');
         Route::delete('/{id}',   [ExpenseController::class, 'destroy'])->name('destroy');
+        Route::post('/{id}/comments', [ExpenseController::class, 'addComment'])->name('comments.store');
+        Route::delete('/{id}/comments/{idx}', [ExpenseController::class, 'deleteComment'])->name('comments.destroy');
+        Route::patch('/{id}/stop-recurring', [ExpenseController::class, 'stopRecurring'])->name('stop-recurring');
         Route::post('/ocr',      [ExpenseController::class, 'ocr'])->name('ocr');
     });
 

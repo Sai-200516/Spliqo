@@ -25,9 +25,19 @@
             <button type="submit" class="px-4 py-2 rounded-xl bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 transition-colors">
                 Filter
             </button>
-            @if (request()->hasAny(['search', 'group', 'category']))
+            <label class="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                <input type="checkbox" name="recurring" value="1" {{ request('recurring') ? 'checked' : '' }}
+                       class="w-4 h-4 rounded text-emerald-500 border-gray-300 dark:border-gray-600 focus:ring-emerald-500">
+                Recurring only
+            </label>
+            @if (request()->hasAny(['search', 'group', 'category', 'recurring']))
                 <a href="{{ route('expenses.index') }}" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">Clear</a>
             @endif
+            <a href="{{ route('expenses.export', request()->only(['group', 'category'])) }}"
+               class="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0-3-3m3 3 3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                Export CSV
+            </a>
         </form>
 
         @forelse ($expenses as $expense)
@@ -68,6 +78,9 @@
                         <p class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{{ $expense->title }}</p>
                         @if ($expense->category)
                             <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 shrink-0">{{ ucfirst($expense->category) }}</span>
+                        @endif
+                        @if (!empty($expense->recurrence['active']))
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 shrink-0" title="Recurring {{ $expense->recurrence['frequency'] }}">🔁 Recurring</span>
                         @endif
                     </div>
                     <p class="text-xs text-gray-400 mt-0.5">

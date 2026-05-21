@@ -15,6 +15,9 @@
                             @if ($expense->group_id)
                                 &middot; {{ $group?->name }}
                             @endif
+                            @if (!empty($expense->recurrence['active']))
+                                &middot; <span class="text-emerald-600 dark:text-emerald-400 font-medium">🔁 {{ ucfirst($expense->recurrence['frequency'] ?? 'monthly') }}</span>
+                            @endif
                         </p>
                     </div>
                 </div>
@@ -31,6 +34,27 @@
                 <p class="mt-3 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3">{{ $expense->notes }}</p>
             @endif
         </div>
+
+        {{-- Recurring template banner --}}
+        @if (!empty($expense->recurrence['active']))
+            @php $canStopRecurring = $expense->created_by === (string) auth()->user()->_id || $group?->isAdmin((string) auth()->user()->_id); @endphp
+            <div class="flex items-center justify-between gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl px-5 py-3.5">
+                <div class="flex items-center gap-2.5 text-sm text-emerald-700 dark:text-emerald-400">
+                    <span class="text-base">🔁</span>
+                    <span>This expense repeats <strong>{{ $expense->recurrence['frequency'] ?? 'monthly' }}</strong>. Next copy: <strong>{{ \Carbon\Carbon::parse($expense->recurrence['next_due'])->format('d M Y') }}</strong></span>
+                </div>
+                @if ($canStopRecurring)
+                    <form method="POST" action="{{ route('expenses.stop-recurring', $expense->_id) }}"
+                          x-data @submit.prevent="if(confirm('Stop this recurring schedule? No future copies will be created.')) $el.submit()">
+                        @csrf @method('PATCH')
+                        <button type="submit"
+                                class="text-xs px-3 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors font-medium shrink-0">
+                            Stop
+                        </button>
+                    </form>
+                @endif
+            </div>
+        @endif
 
         {{-- Paid by --}}
         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
@@ -90,6 +114,53 @@
                 </div>
             </div>
         @endif
+
+        {{-- Comments --}}
+        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
+                Comments
+                @php $commentCount = count($expense->comments ?? []); @endphp
+                @if ($commentCount > 0)
+                    <span class="ml-1.5 px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-xs text-gray-500 dark:text-gray-400">{{ $commentCount }}</span>
+                @endif
+            </h3>
+
+            @forelse ($expense->comments ?? [] as $i => $comment)
+                <div class="flex gap-3 mb-4 last:mb-0">
+                    <div class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs font-semibold text-gray-600 dark:text-gray-300 shrink-0">
+                        {{ strtoupper(substr($comment['user_name'] ?? '?', 0, 2)) }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-0.5">
+                            <span class="text-xs font-semibold text-gray-800 dark:text-gray-200">{{ $comment['user_name'] ?? 'Unknown' }}</span>
+                            <span class="text-xs text-gray-400">{{ \Carbon\Carbon::parse($comment['created_at'])->diffForHumans() }}</span>
+                            @if (($comment['user_id'] ?? '') === (string) auth()->user()->_id || $group?->isAdmin((string) auth()->user()->_id))
+                                <form method="POST" action="{{ route('expenses.comments.destroy', [$expense->_id, $i]) }}" class="ml-auto">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-gray-300 dark:text-gray-600 hover:text-red-400 transition-colors" title="Delete comment">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                        <p class="text-sm text-gray-700 dark:text-gray-300">{{ $comment['body'] }}</p>
+                    </div>
+                </div>
+            @empty
+                <p class="text-sm text-gray-400 dark:text-gray-500 mb-4">No comments yet.</p>
+            @endforelse
+
+            <form method="POST" action="{{ route('expenses.comments.store', $expense->_id) }}" class="mt-4 flex gap-2">
+                @csrf
+                <input type="text" name="body" required maxlength="500"
+                       placeholder="Add a comment..."
+                       class="flex-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3.5 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition">
+                <button type="submit"
+                        class="px-4 py-2 rounded-xl bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 transition-colors shrink-0">
+                    Post
+                </button>
+            </form>
+        </div>
 
         {{-- Delete --}}
         @if ($expense->created_by === (string) auth()->user()->_id)

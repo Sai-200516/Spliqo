@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Balance;
 use App\Models\Expense;
 use App\Models\Group;
@@ -64,6 +65,8 @@ class GroupController extends Controller
         ]];
 
         $group = Group::create($data);
+
+        ActivityLog::log('group.created', 'Group', (string) $group->_id, ['name' => $group->name]);
 
         return redirect()->route('groups.show', $group->_id)
             ->with('success', 'Group created successfully.');
@@ -262,5 +265,25 @@ class GroupController extends Controller
         $group->update(['is_archived' => true, 'archived_at' => now()]);
 
         return redirect()->route('groups.index')->with('success', 'Group archived.');
+    }
+
+    public function nudge(Request $request, string $id, string $userId)
+    {
+        $group = Group::findOrFail($id);
+        abort_unless($group->hasMember((string) $request->user()->_id), 403);
+        abort_unless($group->hasMember($userId), 403);
+
+        $senderName = $request->user()->name;
+        $groupName  = $group->name;
+
+        $this->notifications->send(
+            $userId,
+            'nudge',
+            $senderName . ' is waiting to be paid',
+            'You still owe money in "' . $groupName . '". Settle up when you can!',
+            ['group_id' => $id, 'from_user_id' => (string) $request->user()->_id]
+        );
+
+        return back()->with('success', 'Nudge sent!');
     }
 }

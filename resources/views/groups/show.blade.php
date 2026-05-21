@@ -156,6 +156,17 @@
                                 class="text-xs px-2.5 py-1 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors font-medium">
                                 Settle
                             </button>
+                        @else
+                            {{-- Nudge: only shown when the current user is the one who is owed money --}}
+                            @if ($b->to_user_id === (string) auth()->user()->_id)
+                                <form method="POST" action="{{ route('groups.nudge', [$group->_id, $b->from_user_id]) }}">
+                                    @csrf
+                                    <button type="submit"
+                                            class="text-xs px-2.5 py-1 rounded-lg border border-amber-300 dark:border-amber-600 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors font-medium">
+                                        Nudge
+                                    </button>
+                                </form>
+                            @endif
                         @endif
                     </div>
                 @empty

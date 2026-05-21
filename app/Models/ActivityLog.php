@@ -19,11 +19,24 @@ class ActivityLog extends Model
         'user_agent',
     ];
 
-    protected function casts(): array
+    // NOTE: Do NOT cast 'properties' as 'array' — MongoDB returns native PHP arrays
+    // and the 'array' cast calls json_decode() on an array, causing a TypeError.
+
+    public static function log(string $action, string $subjectType, string $subjectId, array $properties = []): void
     {
-        return [
-            'properties' => 'array',
-        ];
+        try {
+            static::create([
+                'user_id'      => (string) auth()->id(),
+                'action'       => $action,
+                'subject_type' => $subjectType,
+                'subject_id'   => $subjectId,
+                'properties'   => $properties,
+                'ip_address'   => request()->ip(),
+                'user_agent'   => request()->userAgent(),
+            ]);
+        } catch (\Throwable) {
+            // Never let logging crash the request
+        }
     }
 
     public function user(): ?User
