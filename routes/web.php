@@ -46,6 +46,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/{id}',        [GroupController::class, 'update'])->name('update');
         Route::delete('/{id}',       [GroupController::class, 'destroy'])->name('destroy');
         Route::post('/{id}/invite',  [GroupController::class, 'inviteStore'])->name('invite');
+        Route::post('/{id}/invitations/{inviteId}/resend', [GroupController::class, 'inviteResend'])->name('invitations.resend');
+        Route::delete('/{id}/invitations/{inviteId}',      [GroupController::class, 'inviteCancel'])->name('invitations.cancel');
         Route::delete('/{id}/members/{memberId}', [GroupController::class, 'removeMember'])->name('members.remove');
         Route::post('/{id}/archive', [GroupController::class, 'archive'])->name('archive');
     });

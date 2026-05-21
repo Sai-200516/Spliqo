@@ -22,7 +22,6 @@ class AppNotification extends Model
     protected function casts(): array
     {
         return [
-            'data'    => 'array',
             'is_read' => 'boolean',
             'read_at' => 'datetime',
         ];

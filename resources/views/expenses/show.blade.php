@@ -3,13 +3,6 @@
 
     <div class="p-4 sm:p-6 pb-20 md:pb-6 max-w-2xl space-y-5">
 
-        @if (session('success'))
-            <div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-sm border border-emerald-200 dark:border-emerald-800">
-                <x-icon.check-circle class="w-4 h-4 shrink-0" />
-                {{ session('success') }}
-            </div>
-        @endif
-
         {{-- Header card --}}
         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
             <div class="flex items-start justify-between gap-3 mb-4">
@@ -42,7 +35,12 @@
         {{-- Paid by --}}
         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
             <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Paid by</h3>
-            @foreach ($expense->paid_by ?? [] as $payer)
+            @php
+                $paidByList = $expense->paid_by ?? [];
+                // Normalize: old documents stored a flat dict; new ones store an array of dicts
+                if (isset($paidByList['user_id'])) { $paidByList = [$paidByList]; }
+            @endphp
+            @foreach ($paidByList as $payer)
                 @php $u = $members->firstWhere(fn($m) => (string)$m->_id === $payer['user_id']); @endphp
                 <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-xs font-semibold text-emerald-700 dark:text-emerald-400">
@@ -84,8 +82,9 @@
                 <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Attachments</h3>
                 <div class="grid grid-cols-3 gap-2">
                     @foreach ($expense->attachments as $att)
-                        <a href="{{ Storage::url($att) }}" target="_blank" class="rounded-xl overflow-hidden">
-                            <img src="{{ Storage::url($att) }}" class="w-full aspect-square object-cover hover:opacity-80 transition-opacity" alt="Attachment">
+                        @php $attPath = is_array($att) ? ($att['path'] ?? '') : $att; @endphp
+                        <a href="{{ Storage::url($attPath) }}" target="_blank" class="rounded-xl overflow-hidden">
+                            <img src="{{ Storage::url($attPath) }}" class="w-full aspect-square object-cover hover:opacity-80 transition-opacity" alt="Attachment">
                         </a>
                     @endforeach
                 </div>

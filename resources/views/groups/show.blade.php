@@ -3,19 +3,6 @@
 
     <div class="p-4 sm:p-6 pb-20 md:pb-6 space-y-6">
 
-        @if (session('success'))
-            <div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-sm border border-emerald-200 dark:border-emerald-800">
-                <x-icon.check-circle class="w-4 h-4 shrink-0" />
-                {{ session('success') }}
-            </div>
-        @endif
-        @if (session('error'))
-            <div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm border border-red-200 dark:border-red-800">
-                <x-icon.exclamation-circle class="w-4 h-4 shrink-0" />
-                {{ session('error') }}
-            </div>
-        @endif
-
         {{-- Group header --}}
         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
             <div class="flex items-start justify-between gap-4">
@@ -100,6 +87,44 @@
                         @endif
                     </div>
                 @endforeach
+
+                {{-- Pending invitations (admin only) --}}
+                @if ($group->isAdmin((string) auth()->user()->_id) && $pendingInvitations->isNotEmpty())
+                    <div class="border-t border-gray-100 dark:border-gray-700 px-5 pt-4 pb-3">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-3">Pending Invitations</p>
+                        @foreach ($pendingInvitations as $inv)
+                            <div class="flex items-center gap-3 py-2.5 border-b border-gray-50 dark:border-gray-700/50 last:border-0">
+                                <div class="w-9 h-9 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                                    <span class="text-xs font-semibold text-amber-600 dark:text-amber-400">{{ strtoupper(substr($inv->email, 0, 2)) }}</span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{{ $inv->email }}</p>
+                                    <p class="text-xs text-amber-500 dark:text-amber-400">Expires {{ $inv->expires_at->diffForHumans() }}</p>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    {{-- Resend --}}
+                                    <form method="POST" action="{{ route('groups.invitations.resend', [$group->_id, $inv->_id]) }}">
+                                        @csrf
+                                        <button type="submit"
+                                                class="text-xs px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors font-medium">
+                                            Resend
+                                        </button>
+                                    </form>
+                                    {{-- Cancel --}}
+                                    <form method="POST" action="{{ route('groups.invitations.cancel', [$group->_id, $inv->_id]) }}"
+                                          x-data @submit.prevent="if(confirm('Cancel this invitation?')) $el.submit()">
+                                        @csrf @method('DELETE')
+                                        <button type="submit"
+                                                class="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                                title="Cancel invitation">
+                                            <x-icon.x-mark class="w-4 h-4" />
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
             </div>
 
             {{-- Balances (simplified) --}}
@@ -161,8 +186,32 @@
         </div>
 
         @forelse ($expenses as $expense)
-            <a href="{{ route('expenses.show', $expense->_id) }}"
-               class="flex items-center gap-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 mb-3 hover:shadow-sm hover:border-emerald-200 dark:hover:border-emerald-800 transition-all">
+            @php
+                $paidByNorm = $expense->paid_by ?? [];
+                if (isset($paidByNorm['user_id'])) { $paidByNorm = [$paidByNorm]; }
+                $expData = [
+                    'id'           => (string) $expense->_id,
+                    'title'        => $expense->title,
+                    'amount'       => $expense->amount_formatted,
+                    'category'     => ucfirst($expense->category ?? 'other'),
+                    'splitType'    => ucfirst($expense->split_type ?? 'equal'),
+                    'date'         => \Carbon\Carbon::parse($expense->created_at)->format('d M Y, H:i'),
+                    'notes'        => $expense->notes ?? '',
+                    'canEdit'      => $expense->created_by === (string) auth()->user()->_id,
+                    'editUrl'      => route('expenses.show', $expense->_id),
+                    'deleteAction' => route('expenses.destroy', $expense->_id),
+                    'paidBy'       => array_map(fn($p) => [
+                        'name'   => ($members->firstWhere(fn($m) => (string)$m->_id === $p['user_id'])?->name ?? 'Unknown') . ($p['user_id'] === (string) auth()->user()->_id ? ' (you)' : ''),
+                        'amount' => '₹' . number_format($p['amount'] / 100, 2),
+                    ], $paidByNorm),
+                    'splits'       => array_map(fn($s) => [
+                        'name'    => ($members->firstWhere(fn($m) => (string)$m->_id === $s['user_id'])?->name ?? 'Unknown') . ($s['user_id'] === (string) auth()->user()->_id ? ' (you)' : ''),
+                        'amount'  => '₹' . number_format($s['amount'] / 100, 2),
+                        'settled' => $s['is_settled'] ?? false,
+                    ], $expense->splits ?? []),
+                ];
+            @endphp
+            <div class="flex items-center gap-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 mb-3 hover:shadow-sm hover:border-emerald-200 dark:hover:border-emerald-800 transition-all">
                 <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
                     <x-icon.banknotes class="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
@@ -176,9 +225,30 @@
                     </p>
                 </div>
                 <span class="text-sm font-semibold text-gray-900 dark:text-gray-100 shrink-0">
-                    {{ $group->currency ?? 'INR' }} {{ $expense->amount_formatted }}
+                    {{ $expense->amount_formatted }}
                 </span>
-            </a>
+                {{-- Action icons --}}
+                <div class="flex items-center gap-0.5 ml-1 shrink-0">
+                    <button @click="$dispatch('open-view-expense', @js($expData))"
+                            class="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" title="View">
+                        <x-icon.eye class="w-4 h-4" />
+                    </button>
+                    @if ($expense->created_by === (string) auth()->user()->_id)
+                        <a href="{{ route('expenses.show', $expense->_id) }}"
+                           class="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" title="Edit">
+                            <x-icon.pencil-square class="w-4 h-4" />
+                        </a>
+                        <form method="POST" action="{{ route('expenses.destroy', $expense->_id) }}"
+                              x-data @submit.prevent="if(confirm('Delete this expense?')) $el.submit()">
+                            @csrf @method('DELETE')
+                            <button type="submit"
+                                    class="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title="Delete">
+                                <x-icon.trash class="w-4 h-4" />
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            </div>
         @empty
             <div class="rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 p-6 text-center">
                 <p class="text-sm text-gray-500 dark:text-gray-400">No expenses yet — add the first one above.</p>
@@ -289,6 +359,93 @@
                 </button>
                 <button @click="pay()" class="flex-1 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 transition-colors">
                     Pay now
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- View expense modal --}}
+    <div x-data="{
+            open: false,
+            exp: { paidBy: [], splits: [] },
+            openModal(data) { this.exp = data; this.open = true; }
+         }"
+         x-show="open"
+         @open-view-expense.window="openModal($event.detail)"
+         @keydown.escape.window="open = false"
+         class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+         style="display:none;">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="open = false"
+             x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+        <div class="relative w-full sm:max-w-lg bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden"
+             x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-4">
+
+            {{-- Header --}}
+            <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+                <div class="min-w-0">
+                    <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100 truncate" x-text="exp.title"></h2>
+                    <p class="text-xs text-gray-400 mt-0.5" x-text="exp.category + ' · ' + exp.date"></p>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                    <a x-show="exp.canEdit" :href="exp.editUrl"
+                       class="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" title="Edit">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                        </svg>
+                    </a>
+                    <button @click="open = false" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        <x-icon.x-mark class="w-4 h-4 text-gray-500" />
+                    </button>
+                </div>
+            </div>
+
+            {{-- Body --}}
+            <div class="overflow-y-auto max-h-[65vh] p-5 space-y-5">
+                {{-- Amount --}}
+                <p class="text-3xl font-bold text-gray-900 dark:text-gray-100" x-text="exp.amount"></p>
+
+                {{-- Notes --}}
+                <p x-show="exp.notes" x-text="exp.notes"
+                   class="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/60 rounded-xl px-4 py-3"></p>
+
+                {{-- Paid by --}}
+                <div>
+                    <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">Paid by</h3>
+                    <template x-for="(p, i) in exp.paidBy" :key="i">
+                        <div class="flex items-center justify-between py-1.5">
+                            <span class="text-sm text-gray-700 dark:text-gray-300" x-text="p.name"></span>
+                            <span class="text-sm font-semibold text-gray-900 dark:text-gray-100" x-text="p.amount"></span>
+                        </div>
+                    </template>
+                </div>
+
+                {{-- Splits --}}
+                <div>
+                    <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">
+                        Split (<span x-text="exp.splitType"></span>)
+                    </h3>
+                    <template x-for="(s, i) in exp.splits" :key="i">
+                        <div class="flex items-center gap-3 py-2 border-b border-gray-50 dark:border-gray-800 last:border-0">
+                            <span class="flex-1 text-sm text-gray-700 dark:text-gray-300" x-text="s.name"></span>
+                            <span class="text-sm font-semibold text-gray-900 dark:text-gray-100" x-text="s.amount"></span>
+                            <span :class="s.settled ? 'text-emerald-500' : 'text-amber-500'"
+                                  class="text-xs font-medium" x-text="s.settled ? 'Settled' : 'Pending'"></span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            {{-- Footer --}}
+            <div class="px-5 py-4 border-t border-gray-100 dark:border-gray-800 flex gap-3">
+                <a x-show="exp.canEdit" :href="exp.editUrl"
+                   class="flex-1 py-2.5 rounded-xl border border-blue-200 dark:border-blue-800 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-center">
+                    Edit expense
+                </a>
+                <button @click="open = false"
+                        class="flex-1 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    Close
                 </button>
             </div>
         </div>

@@ -31,7 +31,7 @@ class GroupInvitationMail extends Mailable
             'group'       => $this->group,
             'invitation'  => $this->invitation,
             'inviterName' => $this->inviterName,
-            'acceptUrl'   => route('invite.accept', $this->invitation->token),
+            'acceptUrl'   => route('groups.invite.accept', $this->invitation->token),
         ]);
     }
 }

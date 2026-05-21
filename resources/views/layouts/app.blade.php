@@ -14,6 +14,7 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#10B981">
     <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
 
     <!-- Vite -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -157,6 +158,14 @@
                 <x-icon.bars-3 class="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </button>
 
+            {{-- Spliqo brand in header --}}
+            <a href="{{ route('dashboard') }}" class="flex items-center gap-2 shrink-0 mr-1">
+                <div class="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
+                    <x-icon.banknotes class="w-3.5 h-3.5 text-white" />
+                </div>
+                <span class="md:hidden text-sm font-bold text-gray-900 dark:text-white">Spliqo</span>
+            </a>
+
             {{-- Page heading --}}
             <h1 class="flex-1 text-base font-semibold text-gray-900 dark:text-gray-100">
                 {{ $heading ?? '' }}
@@ -293,7 +302,7 @@
                         </div>
                         <label class="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                             <x-icon.camera class="w-4 h-4" /><span>Scan</span>
-                            <input type="file" class="hidden" accept="image/*" @change="ocrScan($event)">
+                            <input type="file" name="receipt" class="hidden" accept="image/*" @change="ocrScan($event)">
                         </label>
                     </div>
                     <p class="mt-1 text-xs text-emerald-600" x-show="ocrLoading" x-cloak>Scanning receipt...</p>
@@ -367,6 +376,13 @@
                     <textarea name="notes" rows="2" maxlength="1000"
                               class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3.5 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition resize-none"
                               placeholder="Optional notes..."></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Tags</label>
+                    <input type="text" name="tags" maxlength="200"
+                           class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3.5 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                           placeholder="e.g. food, trip, shared (comma-separated)">
                 </div>
 
                 <div class="flex gap-3 pt-1">

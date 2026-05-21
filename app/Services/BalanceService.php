@@ -22,8 +22,10 @@ class BalanceService
         $rawDebts = [];
 
         foreach ($expenses as $expense) {
-            $paidBy = $expense->paid_by;
-            $payerId = $paidBy['user_id'] ?? null;
+            $paidBy = $expense->paid_by ?? [];
+            // Normalize: old docs stored flat dict, new docs store array of dicts
+            if (isset($paidBy['user_id'])) { $paidBy = [$paidBy]; }
+            $payerId = $paidBy[0]['user_id'] ?? null;
 
             if (!$payerId) {
                 continue;

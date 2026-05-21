@@ -37,7 +37,7 @@ class ExpenseController extends Controller
             $query->where('group_id', $request->group);
         }
         if ($request->filled('category')) {
-            $query->where('category', $request->category);
+            $query->where('category', strtolower($request->category));
         }
         if ($request->filled('search')) {
             $query->where('title', 'regex', '/' . preg_quote($request->search, '/') . '/i');
@@ -119,7 +119,7 @@ class ExpenseController extends Controller
             $attachments[] = ['path' => $path, 'type' => 'receipt'];
         }
 
-        $tags = $data['tags']
+        $tags = !empty($data['tags'] ?? null)
             ? array_filter(array_map('trim', explode(',', $data['tags'])))
             : [];
 
@@ -137,11 +137,11 @@ class ExpenseController extends Controller
         $expense = Expense::create([
             'title'       => $data['title'],
             'amount'      => (int) round($data['amount'] * 100),
-            'category'    => $data['category'] ?? 'other',
+            'category'    => strtolower($data['category'] ?? 'other'),
             'group_id'    => $data['group_id'],
             'split_type'  => $data['split_type'],
             'splits'      => $splits,
-            'paid_by'     => ['user_id' => $userId, 'amount' => (int) round($data['amount'] * 100)],
+            'paid_by'     => [['user_id' => $userId, 'amount' => (int) round($data['amount'] * 100)]],
             'notes'       => $data['notes'] ?? null,
             'tags'        => $tags,
             'attachments' => $attachments,
@@ -216,14 +216,14 @@ class ExpenseController extends Controller
             'tags'     => 'nullable|string',
         ]);
 
-        $tags = $data['tags']
+        $tags = !empty($data['tags'] ?? null)
             ? array_filter(array_map('trim', explode(',', $data['tags'])))
             : [];
 
         $expense->update([
             'title'      => $data['title'],
             'amount'     => (int) round($data['amount'] * 100),
-            'category'   => $data['category'] ?? 'other',
+            'category'   => strtolower($data['category'] ?? 'other'),
             'notes'      => $data['notes'] ?? null,
             'tags'       => $tags,
             'updated_by' => (string) $request->user()->_id,

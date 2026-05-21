@@ -76,17 +76,22 @@ class GroupController extends Controller
 
         abort_unless($group->hasMember($userId), 403);
 
-        $balance     = $this->balances->getUserBalance($userId, $id);
-        $balances    = Balance::where('group_id', $id)->get();
-        $memberIds   = collect($group->members)->pluck('user_id')->toArray();
-        $members     = User::findMany($memberIds);
-        $expenses    = Expense::where('group_id', $id)
+        $balance            = $this->balances->getUserBalance($userId, $id);
+        $balances           = Balance::where('group_id', $id)->get();
+        $memberIds          = collect($group->members)->pluck('user_id')->toArray();
+        $members            = User::findMany($memberIds);
+        $expenses           = Expense::where('group_id', $id)
             ->where('status', 'active')
             ->orderByDesc('created_at')
             ->limit(5)
             ->get();
+        $pendingInvitations = Invitation::where('group_id', $id)
+            ->where('status', 'pending')
+            ->orderByDesc('created_at')
+            ->get()
+            ->filter(fn($inv) => !$inv->isExpired());
 
-        return view('groups.show', compact('group', 'balance', 'balances', 'members', 'expenses'));
+        return view('groups.show', compact('group', 'balance', 'balances', 'members', 'expenses', 'pendingInvitations'));
     }
 
     public function edit(Request $request, string $id)
@@ -151,12 +156,41 @@ class GroupController extends Controller
             'status'     => 'pending',
         ]);
 
-        // Queue invitation email
-        \Illuminate\Support\Facades\Mail::to($data['email'])->queue(
+        \Illuminate\Support\Facades\Mail::to($data['email'])->send(
             new \App\Mail\GroupInvitationMail($group, $invitation, $request->user()->name)
         );
 
         return back()->with('success', 'Invitation sent to ' . $data['email']);
+    }
+
+    public function inviteResend(Request $request, string $id, string $inviteId)
+    {
+        $group      = Group::findOrFail($id);
+        abort_unless($group->isAdmin((string) $request->user()->_id), 403);
+
+        $invitation = Invitation::findOrFail($inviteId);
+        abort_unless((string) $invitation->group_id === $id, 404);
+
+        $invitation->update(['expires_at' => now()->addDays(7)]);
+
+        \Illuminate\Support\Facades\Mail::to($invitation->email)->send(
+            new \App\Mail\GroupInvitationMail($group, $invitation, $request->user()->name)
+        );
+
+        return back()->with('success', 'Invitation resent to ' . $invitation->email);
+    }
+
+    public function inviteCancel(Request $request, string $id, string $inviteId)
+    {
+        $group      = Group::findOrFail($id);
+        abort_unless($group->isAdmin((string) $request->user()->_id), 403);
+
+        $invitation = Invitation::findOrFail($inviteId);
+        abort_unless((string) $invitation->group_id === $id, 404);
+
+        $invitation->update(['status' => 'cancelled']);
+
+        return back()->with('success', 'Invitation cancelled.');
     }
 
     public function acceptInvite(string $token)

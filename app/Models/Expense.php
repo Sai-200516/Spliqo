@@ -32,11 +32,7 @@ class Expense extends Model
     protected function casts(): array
     {
         return [
-            'amount'      => 'integer',
-            'tags'        => 'array',
-            'paid_by'     => 'array',
-            'splits'      => 'array',
-            'attachments' => 'array',
+            'amount' => 'integer',
         ];
     }
 
@@ -73,7 +69,10 @@ class Expense extends Model
 
     public function paidByUser(): ?User
     {
-        return User::find($this->paid_by['user_id'] ?? null);
+        $paidBy = $this->paid_by ?? [];
+        // Normalize: old docs store flat dict, new docs store array of dicts
+        if (isset($paidBy['user_id'])) { $paidBy = [$paidBy]; }
+        return User::find($paidBy[0]['user_id'] ?? null);
     }
 
     public function getUserSplit(string $userId): ?array
