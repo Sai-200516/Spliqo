@@ -27,9 +27,8 @@ class Transaction extends Model
     protected function casts(): array
     {
         return [
-            'amount'      => 'integer',
-            'expense_ids' => 'array',
-            'settled_at'  => 'datetime',
+            'amount'     => 'integer',
+            'settled_at' => 'datetime',
         ];
     }
 

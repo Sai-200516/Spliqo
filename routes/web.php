@@ -80,6 +80,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Notifications
     Route::prefix('notifications')->name('notifications.')->group(function () {
         Route::get('/',              [NotificationController::class, 'index'])->name('index');
+        Route::get('/feed',          [NotificationController::class, 'feed'])->name('feed');
         Route::post('/mark-all',     [NotificationController::class, 'markAllRead'])->name('mark-all');
         Route::post('/{id}/read',    [NotificationController::class, 'markRead'])->name('read');
         Route::delete('/{id}',       [NotificationController::class, 'destroy'])->name('destroy');

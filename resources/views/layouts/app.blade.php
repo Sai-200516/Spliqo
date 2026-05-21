@@ -7,6 +7,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    @auth
+    @php $__unread = auth()->user()->notifications()->where('is_read', false)->count(); @endphp
+    <meta name="user-id" content="{{ auth()->id() }}">
+    <meta name="notif-unread" content="{{ $__unread }}">
+    @endauth
 
     <title>{{ $heading ?? config('app.name', 'Spliqo') }}</title>
 
@@ -183,15 +188,98 @@
                 Add expense
             </button>
 
-            {{-- Notifications bell --}}
-            <a href="{{ route('notifications.index') }}"
-               class="relative p-2 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                <x-icon.bell class="w-5 h-5" />
-                @php $unread = auth()->user()?->notifications()->where('is_read', false)->count() ?? 0; @endphp
-                @if ($unread > 0)
-                    <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500"></span>
-                @endif
-            </a>
+            {{-- Notifications bell dropdown --}}
+            <div class="relative" x-data="notificationPanel()" x-init="init()" @keydown.escape.window="open = false">
+
+                {{-- Bell button --}}
+                <button @click="toggle()"
+                        class="relative p-2 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        :aria-expanded="open">
+                    <x-icon.bell class="w-5 h-5" />
+                    <span x-show="$store.notifications.unread > 0"
+                          class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500"
+                          style="display:none;"></span>
+                </button>
+
+                {{-- Dropdown panel --}}
+                <div x-show="open"
+                     x-transition:enter="transition ease-out duration-150"
+                     x-transition:enter-start="opacity-0 scale-95"
+                     x-transition:enter-end="opacity-100 scale-100"
+                     x-transition:leave="transition ease-in duration-100"
+                     x-transition:leave-start="opacity-100 scale-100"
+                     x-transition:leave-end="opacity-0 scale-95"
+                     @click.outside="open = false"
+                     class="absolute right-0 mt-2 w-80 origin-top-right rounded-2xl shadow-xl
+                            bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800
+                            z-50 flex flex-col"
+                     style="display:none;">
+
+                    {{-- Panel header --}}
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                        <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">Notifications</span>
+                        <button @click="markAllRead()"
+                                x-show="$store.notifications.items.some(n => !n.is_read)"
+                                class="text-xs text-emerald-600 dark:text-emerald-400 hover:underline">
+                            Mark all read
+                        </button>
+                    </div>
+
+                    {{-- Notification list --}}
+                    <div class="overflow-y-auto max-h-96 divide-y divide-gray-100 dark:divide-gray-800">
+
+                        {{-- Loading skeleton --}}
+                        <template x-if="loading">
+                            <div class="px-4 py-6 flex justify-center">
+                                <svg class="animate-spin w-5 h-5 text-emerald-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                                </svg>
+                            </div>
+                        </template>
+
+                        {{-- Empty state --}}
+                        <template x-if="!loading && $store.notifications.items.length === 0">
+                            <div class="px-4 py-8 text-center text-sm text-gray-400 dark:text-gray-500">
+                                You're all caught up!
+                            </div>
+                        </template>
+
+                        {{-- Notification rows --}}
+                        <template x-for="n in $store.notifications.items" :key="n.id">
+                            <div class="flex gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors"
+                                 :class="!n.is_read ? 'border-l-2 border-emerald-500' : 'border-l-2 border-transparent'">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate" x-text="n.title"></p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2" x-text="n.message"></p>
+                                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1" x-text="n.created_at"></p>
+                                </div>
+                                <div class="flex flex-col gap-1 shrink-0">
+                                    <button x-show="!n.is_read"
+                                            @click="markRead(n.id)"
+                                            class="p-1 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+                                            title="Mark read">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                    </button>
+                                    <button @click="remove(n.id)"
+                                            class="p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 dark:text-red-500"
+                                            title="Delete">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    {{-- Panel footer --}}
+                    <div class="px-4 py-2.5 border-t border-gray-100 dark:border-gray-800">
+                        <a href="{{ route('notifications.index') }}"
+                           class="block text-center text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline">
+                            View all notifications
+                        </a>
+                    </div>
+                </div>
+            </div>
         </header>
 
         {{-- Flash messages --}}
@@ -542,6 +630,79 @@ function __expenseModal() {
 </script>
 
 @stack('scripts')
+
+<script>
+function notificationPanel() {
+    return {
+        open: false,
+        loading: false,
+
+        init() {
+            // unread count is seeded from Alpine.store by app.js DOMContentLoaded handler
+        },
+
+        async toggle() {
+            this.open = !this.open;
+            if (this.open && !this.$store.notifications.loaded) {
+                await this.load();
+            }
+        },
+
+        async load() {
+            this.loading = true;
+            try {
+                const res = await fetch('{{ route("notifications.feed") }}', {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                });
+                const data = await res.json();
+                this.$store.notifications.items    = data.notifications;
+                this.$store.notifications.unread   = data.unread_count;
+                this.$store.notifications.loaded   = true;
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async markRead(id) {
+            await fetch(`/notifications/${id}/read`, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+            });
+            const item = this.$store.notifications.items.find(n => n.id === id);
+            if (item && !item.is_read) {
+                item.is_read = true;
+                this.$store.notifications.unread = Math.max(0, this.$store.notifications.unread - 1);
+            }
+        },
+
+        async markAllRead() {
+            await fetch('/notifications/mark-all', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+            });
+            this.$store.notifications.items.forEach(n => n.is_read = true);
+            this.$store.notifications.unread = 0;
+        },
+
+        async remove(id) {
+            await fetch(`/notifications/${id}`, {
+                method: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+            });
+            const idx = this.$store.notifications.items.findIndex(n => n.id === id);
+            if (idx !== -1) {
+                if (!this.$store.notifications.items[idx].is_read) {
+                    this.$store.notifications.unread = Math.max(0, this.$store.notifications.unread - 1);
+                }
+                this.$store.notifications.items.splice(idx, 1);
+            }
+        },
+    };
+}
+</script>
 </body>
 </html>
 

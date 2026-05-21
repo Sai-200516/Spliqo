@@ -40,7 +40,40 @@ Alpine.store('toasts', {
 
 window.addEventListener('toast', (e) => Alpine.store('toasts').add(e.detail.message, e.detail.type));
 
+// Notifications store
+Alpine.store('notifications', {
+    unread: 0,
+    items: [],
+    loaded: false,
+});
+
 Alpine.start();
+
+// Seed unread count from the server-rendered meta tag (set before Alpine boots)
+document.addEventListener('DOMContentLoaded', () => {
+    const meta = document.querySelector('meta[name="notif-unread"]');
+    if (meta) {
+        Alpine.store('notifications').unread = parseInt(meta.content, 10) || 0;
+    }
+
+    // Real-time: listen for new notifications via Reverb
+    const userIdMeta = document.querySelector('meta[name="user-id"]');
+    if (userIdMeta && window.Echo) {
+        window.Echo.private(`notifications.${userIdMeta.content}`)
+            .listen('.notification.sent', (e) => {
+                Alpine.store('notifications').unread++;
+                Alpine.store('notifications').items.unshift({
+                    id:         e.id,
+                    type:       e.type,
+                    title:      e.title,
+                    message:    e.message,
+                    is_read:    false,
+                    created_at: 'just now',
+                });
+                Alpine.store('toasts').add(e.title, 'info');
+            });
+    }
+});
 
 // Service worker — only register in production builds
 // In development, actively unregister any stale SW to prevent offline interception

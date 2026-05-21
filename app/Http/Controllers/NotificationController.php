@@ -52,6 +52,33 @@ class NotificationController extends Controller
         return back()->with('success', 'All notifications marked as read.');
     }
 
+    public function feed(Request $request)
+    {
+        $userId = (string) $request->user()->_id;
+
+        $notifications = AppNotification::where('user_id', $userId)
+            ->orderByRaw(['is_read' => 1, 'created_at' => -1])
+            ->limit(20)
+            ->get(['_id', 'type', 'title', 'message', 'is_read', 'created_at'])
+            ->map(fn($n) => [
+                'id'         => (string) $n->_id,
+                'type'       => $n->type,
+                'title'      => $n->title,
+                'message'    => $n->message,
+                'is_read'    => (bool) $n->is_read,
+                'created_at' => $n->created_at?->diffForHumans() ?? '',
+            ]);
+
+        $unread = AppNotification::where('user_id', $userId)
+            ->where('is_read', false)
+            ->count();
+
+        return response()->json([
+            'notifications' => $notifications,
+            'unread_count'  => $unread,
+        ]);
+    }
+
     public function destroy(Request $request, string $id)
     {
         $notification = AppNotification::findOrFail($id);
