@@ -35,8 +35,12 @@
                     <a href="{{ route('groups.show', $group->_id) }}"
                        class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-800 transition-all block">
                         <div class="flex items-start gap-3 mb-4">
-                            <div class="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
-                                <span class="text-emerald-700 dark:text-emerald-400 font-bold">{{ strtoupper(substr($group->name, 0, 2)) }}</span>
+                            <div class="w-11 h-11 rounded-xl overflow-hidden bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+                                @if ($group->image)
+                                    <img src="{{ $group->image }}" class="w-full h-full object-cover" alt="{{ $group->name }}">
+                                @else
+                                    <span class="text-emerald-700 dark:text-emerald-400 font-bold">{{ strtoupper(substr($group->name, 0, 2)) }}</span>
+                                @endif
                             </div>
                             <div class="flex-1 min-w-0">
                                 <h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate">{{ $group->name }}</h3>

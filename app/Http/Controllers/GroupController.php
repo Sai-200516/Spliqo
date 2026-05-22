@@ -52,7 +52,7 @@ class GroupController extends Controller
         $userId = (string) $request->user()->_id;
 
         if ($request->hasFile('image')) {
-            $data['image'] = $request->file('image')->store('groups', 'public');
+            $data['image'] = app(\App\Services\ImageEncoder::class)->encode($request->file('image'), 300);
         }
 
         $data['created_by'] = $userId;
@@ -116,7 +116,7 @@ class GroupController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            $data['image'] = $request->file('image')->store('groups', 'public');
+            $data['image'] = app(\App\Services\ImageEncoder::class)->encode($request->file('image'), 300);
         }
 
         $group->update($data);

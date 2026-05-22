@@ -67,6 +67,26 @@ class User extends Model implements
             ->count();
     }
 
+    /**
+     * Returns a usable src value for the user's avatar:
+     * - data: URI  → returned as-is (base64 stored in MongoDB)
+     * - http(s):   → returned as-is (legacy Google CDN path, if any)
+     * - plain path → Storage::url() fallback for old filesystem uploads
+     * - null       → null
+     */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if (!$this->avatar) {
+            return null;
+        }
+
+        if (str_starts_with($this->avatar, 'data:') || str_starts_with($this->avatar, 'http')) {
+            return $this->avatar;
+        }
+
+        return \Illuminate\Support\Facades\Storage::url($this->avatar);
+    }
+
     /** Query builder helper so the layout can call ->notifications()->where() */
     public function notifications(): \MongoDB\Laravel\Eloquent\Builder
     {

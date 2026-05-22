@@ -1,8 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}"
-      x-data
-      x-init="$store.theme.init()"
-      :class="$store.theme.dark ? 'dark' : ''">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,6 +11,13 @@
     @endauth
 
     <title>{{ $heading ?? config('app.name', 'Spliqo') }}</title>
+
+    {{-- Apply saved theme before Alpine loads to prevent flash --}}
+    <script>
+        if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json">
@@ -115,8 +119,8 @@
             <button @click="open = !open"
                     class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left">
                 <div class="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-sm font-semibold text-emerald-700 dark:text-emerald-400 shrink-0">
-                    @if (auth()->user()?->avatar)
-                        <img src="{{ Storage::url(auth()->user()->avatar) }}" class="w-8 h-8 rounded-full object-cover">
+                    @if (auth()->user()?->avatar_url)
+                        <img src="{{ auth()->user()->avatar_url }}" class="w-8 h-8 rounded-full object-cover">
                     @else
                         {{ strtoupper(substr(auth()->user()?->name ?? '?', 0, 2)) }}
                     @endif

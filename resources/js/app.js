@@ -6,10 +6,9 @@ import Chart  from 'chart.js/auto';
 window.Alpine = Alpine;
 window.Chart  = Chart;
 
-// Theme store
+// Theme store — default is light; only go dark if explicitly saved
 Alpine.store('theme', {
-    dark: localStorage.getItem('theme') === 'dark' ||
-          (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches),
+    dark: localStorage.getItem('theme') === 'dark',
     toggle() {
         this.dark = !this.dark;
         document.documentElement.classList.toggle('dark', this.dark);
@@ -19,9 +18,6 @@ Alpine.store('theme', {
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content },
             body: JSON.stringify({ theme: this.dark ? 'dark' : 'light' }),
         }).catch(() => {});
-    },
-    init() {
-        document.documentElement.classList.toggle('dark', this.dark);
     },
 });
 

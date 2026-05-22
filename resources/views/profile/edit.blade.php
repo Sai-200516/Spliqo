@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="heading">Profile</x-slot>
 
-    <div class="p-4 sm:p-6 pb-20 md:pb-6 max-w-xl space-y-5">
+    <div class="p-4 sm:p-6 pb-20 md:pb-6 max-w-xl mx-auto space-y-5">
 
         @if (session('status') === 'profile-updated')
             <div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-sm border border-emerald-200 dark:border-emerald-800">
@@ -16,24 +16,56 @@
             <form method="POST" action="{{ route('profile.update') }}" enctype="multipart/form-data" class="space-y-4">
                 @csrf @method('PATCH')
 
-                <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 rounded-2xl overflow-hidden bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                        @if ($user->avatar)
-                            <img src="{{ Storage::url($user->avatar) }}" class="w-full h-full object-cover" alt="Avatar">
-                        @else
-                            <span class="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{{ strtoupper(substr($user->name, 0, 2)) }}</span>
-                        @endif
+                <div class="flex flex-col items-center gap-3 py-2"
+                     x-data="{
+                         previewUrl: '{{ addslashes($user->avatar_url ?? '') }}',
+                         uploading: false,
+                         uploadError: '',
+                         async pick(event) {
+                             const file = event.target.files[0];
+                             if (!file) return;
+                             this.uploadError = '';
+                             this.previewUrl = URL.createObjectURL(file);
+                             this.uploading = true;
+                             try {
+                                 const fd = new FormData();
+                                 fd.append('avatar', file);
+                                 fd.append('_token', document.querySelector('meta[name=csrf-token]').content);
+                                 const res = await fetch('{{ route('profile.avatar') }}', { method: 'POST', body: fd });
+                                 if (res.ok) {
+                                     const data = await res.json();
+                                     this.previewUrl = data.avatar_url;
+                                 } else {
+                                     this.uploadError = 'Upload failed. Max 2 MB, images only.';
+                                 }
+                             } catch {
+                                 this.uploadError = 'Network error. Please try again.';
+                             } finally {
+                                 this.uploading = false;
+                             }
+                         }
+                     }">
+                    {{-- Avatar circle with spinner overlay --}}
+                    <div class="relative w-16 h-16 rounded-2xl overflow-hidden bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+                        <img x-show="previewUrl" :src="previewUrl" class="w-full h-full object-cover" alt="Avatar">
+                        <span x-show="!previewUrl" class="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{{ strtoupper(substr($user->name, 0, 2)) }}</span>
+                        <div x-show="uploading" class="absolute inset-0 bg-black/40 flex items-center justify-center rounded-2xl">
+                            <svg class="animate-spin w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                            </svg>
+                        </div>
                     </div>
                     <div>
-                        <label class="cursor-pointer flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 font-medium hover:underline">
+                        <label class="cursor-pointer flex items-center justify-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 font-medium hover:underline" :class="{ 'opacity-50 pointer-events-none': uploading }">
                             <x-icon.arrow-up-tray class="w-4 h-4" />
-                            Change photo
-                            <input type="file" name="avatar" accept="image/*" class="hidden">
+                            <span x-text="uploading ? 'Uploading…' : 'Change photo'">Change photo</span>
+                            <input type="file" accept="image/*" class="hidden" @change="pick($event)" :disabled="uploading">
                         </label>
-                        <p class="text-xs text-gray-400 mt-0.5">JPG, PNG up to 2MB</p>
+                        <p class="text-xs text-gray-400 mt-0.5 text-center">JPG, PNG up to 2MB — saved instantly</p>
+                        <p x-show="uploadError" x-text="uploadError" class="text-xs text-red-500 mt-1"></p>
                     </div>
                 </div>
-                @error('avatar') <p class="text-xs text-red-500">{{ $message }}</p> @enderror
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Full name</label>

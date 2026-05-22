@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ImageEncoder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
@@ -27,10 +28,7 @@ class ProfileController extends Controller
         ]);
 
         if ($request->hasFile('avatar')) {
-            if ($user->avatar) {
-                Storage::disk('public')->delete($user->avatar);
-            }
-            $data['avatar'] = $request->file('avatar')->store('avatars', 'public');
+            $data['avatar'] = app(ImageEncoder::class)->encode($request->file('avatar'), 400);
         }
 
         if ($data['email'] !== $user->email) {
@@ -40,6 +38,18 @@ class ProfileController extends Controller
         $user->update($data);
 
         return back()->with('success', 'Profile updated successfully.');
+    }
+
+    public function updateAvatar(Request $request): JsonResponse
+    {
+        $request->validate(['avatar' => 'required|image|max:2048']);
+
+        $user = $request->user();
+        $user->update([
+            'avatar' => app(ImageEncoder::class)->encode($request->file('avatar'), 400),
+        ]);
+
+        return response()->json(['avatar_url' => $user->fresh()->avatar_url]);
     }
 
     public function updateTheme(Request $request)

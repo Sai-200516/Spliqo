@@ -95,6 +95,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/',              [ProfileController::class, 'edit'])->name('edit');
         Route::patch('/',            [ProfileController::class, 'update'])->name('update');
+        Route::post('/avatar',       [ProfileController::class, 'updateAvatar'])->name('avatar');
         Route::patch('/theme',       [ProfileController::class, 'updateTheme'])->name('theme');
         Route::patch('/notifications', [ProfileController::class, 'updateNotifications'])->name('notifications');
         Route::delete('/',           [ProfileController::class, 'destroy'])->name('destroy');
